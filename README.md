@@ -16,7 +16,7 @@ The app starts **empty**: no seed or dummy data. Admin sets up the company, HR r
 | --- | --- |
 | Frontend | React 19, Vite, Tailwind CSS v4 (design tokens: navy / white / teal), React Router, Recharts, sonner, `@vladmandic/face-api` (camera check-in + blink liveness) |
 | Backend | Node.js 20+, Express 5, Mongoose 9 (MongoDB 7), Zod validation, JWT + bcrypt, PDFKit, express-rate-limit, helmet |
-| AI | Any OpenAI-compatible LLM with tool calling (default: Groq `openai/gpt-oss-120b`, free tier). Key lives **only** on the server. |
+| AI | Google Gemini (`gemini-2.5-flash`) via its OpenAI-compatible API with tool calling. Key lives **only** on the server. |
 | Tests & CI | `node:test`: business-rule unit tests, an end-to-end run of the demo script against a throwaway DB, and the blink detector. GitHub Actions runs tests, build and `npm audit` on every push |
 
 ## Run it locally (about 5 minutes)
@@ -54,12 +54,9 @@ Then Admin creates HR logins; HR registering an employee creates that employee's
 In `backend/.env`:
 
 ```env
-AI_API_KEY=your-key
-AI_BASE_URL=https://api.groq.com/openai/v1     # Groq (free)
-AI_MODEL=openai/gpt-oss-120b
-# Gemini (free) also works:
-# AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
-# AI_MODEL=gemini-2.5-flash
+AI_API_KEY=your-gemini-api-key
+AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+AI_MODEL=gemini-2.5-flash
 ```
 
 Without a key everything works except the AI features, which show a friendly fallback.
