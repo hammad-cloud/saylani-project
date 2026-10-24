@@ -203,7 +203,7 @@ docker-compose.yml MongoDB for local development
 - **Backend:** Vercel project from `backend/`. `api/index.js` wraps the same Express app as a serverless function and `vercel.json` sends every path to it. Env vars: `MONGO_URI`, `JWT_SECRET`, `AI_API_KEY` (optional: `AI_BASE_URL`, `AI_MODEL`, `AI_HOURLY_LIMIT`, `TZ_OFFSET_MINUTES=300`).
 - **Frontend:** Vercel project from `frontend/` (Vite build). `vercel.json` proxies `/api/*` to the backend (same origin, no CORS setup) and sends every other path to `index.html`.
 
-Redeploy: `cd backend && npx vercel deploy --prod`, then `cd frontend && npx vercel deploy --prod`.
+Both Vercel projects are connected to this GitHub repository (root directories `backend/` and `frontend/`), so **every push to `main` redeploys the live app automatically**. Pull requests and other branches get preview deployments.
 
 ## Not done / known limits
 
