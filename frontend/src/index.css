@@ -1,0 +1,141 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Design tokens: every colour in the app comes from here. */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* Brand */
+  --color-navy: #142b4a; /* primary: branding, headings, navigation, primary buttons */
+  --color-navy-900: #0d1f38;
+  --color-brand: #1f4e79; /* secondary blue: links, selected controls, charts */
+  --color-brand-600: #183e61;
+  --color-brand-50: #eaf1f8;
+  --color-teal: #14b8a6; /* accent: used sparingly for active indicators and highlights */
+  --color-teal-700: #0f766e; /* teal dark enough for white text (AA) */
+  --color-teal-50: #e7f8f6;
+
+  /* AI features use the accent family so they read as one feature, not a new brand */
+  --color-ai: #0f766e;
+  --color-ai-50: #e7f8f6;
+
+  /* Surfaces & text */
+  --color-page: #f4f7fb;
+  --color-ink: #172b4d;
+  --color-muted: #64748b;
+  --color-line: #e2e8f0;
+
+  /* Status */
+  --color-success: #16803d;
+  --color-warning: #b7791f;
+  --color-danger: #c0392b;
+  --color-focus: #2563eb;
+  --color-accent: #b7791f; /* kept for existing usages (on-leave, announcements) */
+
+  /* Motion: short and subtle (≤ 250 ms); all of it is switched off for prefers-reduced-motion below */
+  --animate-page: page-in 220ms ease-out both;
+  --animate-pop: pop-in 180ms ease-out both;
+  --animate-fade: fade-in 180ms ease-out both;
+  --animate-shimmer: shimmer 1.4s ease-in-out infinite;
+  --animate-live: live-dot 1.6s ease-out infinite;
+
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px) scale(0.98);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes shimmer {
+    50% {
+      opacity: 0.55;
+    }
+  }
+  @keyframes live-dot {
+    0% {
+      box-shadow: 0 0 0 0 rgb(20 184 166 / 0.55);
+    }
+    100% {
+      box-shadow: 0 0 0 8px rgb(20 184 166 / 0);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@layer base {
+  html {
+    @apply bg-page text-ink antialiased dark:bg-slate-950 dark:text-slate-200;
+  }
+  body {
+    @apply min-h-screen;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-focus;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply tracking-tight;
+  }
+}
+
+/* A utility (not a component class) so the btn-* variants below can @apply it. */
+@utility btn {
+  @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-line bg-white shadow-[0_1px_2px_rgba(20,43,74,0.05)] dark:border-slate-800 dark:bg-slate-900;
+  }
+  .input {
+    @apply min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-ink placeholder:text-slate-400 hover:border-slate-400 focus:border-focus focus:ring-3 focus:ring-focus/15 focus:outline-none disabled:bg-slate-50 disabled:text-muted dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-semibold text-ink dark:text-slate-300;
+  }
+  .btn-primary {
+    @apply btn bg-navy text-white hover:bg-brand active:bg-navy-900 dark:bg-brand dark:hover:bg-brand-600;
+  }
+  .btn-secondary {
+    @apply btn border border-slate-300 bg-white text-ink hover:border-slate-400 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700;
+  }
+  .btn-danger {
+    @apply btn bg-danger text-white hover:bg-red-800;
+  }
+  .btn-ai {
+    @apply btn bg-ai text-white hover:bg-teal-800;
+  }
+  .btn-sm {
+    @apply min-h-8 px-3 py-1 text-xs;
+  }
+  .table {
+    @apply w-full text-left text-sm;
+  }
+  .table th {
+    @apply border-b border-line bg-slate-50 px-3 py-2.5 text-xs font-semibold tracking-wide text-muted uppercase dark:border-slate-800 dark:bg-slate-800/40;
+  }
+  .table td {
+    @apply border-b border-slate-100 px-3 py-3 dark:border-slate-800;
+  }
+}

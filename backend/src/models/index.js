@@ -1,0 +1,16 @@
+import './AiLog.js';
+import './Announcement.js';
+import './Attendance.js';
+import './AttendanceCorrection.js';
+import './AuditLog.js';
+import './Department.js';
+import './Designation.js';
+import './Employee.js';
+import './Holiday.js';
+import './Leave.js';
+import './LeaveType.js';
+import './Notification.js';
+import './PayrollRun.js';
+import './Payslip.js';
+import './Setting.js';
+import './User.js';

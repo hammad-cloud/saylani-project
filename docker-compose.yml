@@ -1,0 +1,12 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: hcm_lite_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - hcm_mongo_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  hcm_mongo_data:
