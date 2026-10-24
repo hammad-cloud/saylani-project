@@ -118,7 +118,7 @@ export function StatCard({ label, value, hint, tone = 'teal', icon: Icon }) {
         </span>
       )}
       <div className="min-w-0">
-        <p className="truncate text-xs font-semibold tracking-wide text-muted uppercase">{label}</p>
+        <p className="text-xs leading-snug font-semibold tracking-wide text-muted uppercase">{label}</p>
         <p className="mt-1 text-2xl font-bold text-navy tabular-nums dark:text-white">{value ?? '-'}</p>
         {hint && <p className="mt-0.5 text-xs text-muted">{hint}</p>}
       </div>
