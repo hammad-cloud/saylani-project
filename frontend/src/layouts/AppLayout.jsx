@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, LogOut, Menu, Moon, Sparkles, Sun, X, KeyRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { MENU } from '../config/menu';
 import { api } from '../api/client';
 import AiChat from '../components/AiChat';
+import { PageLoader } from '../components/ui';
 
 function useTheme() {
   const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'));
@@ -167,7 +168,9 @@ export default function AppLayout() {
         </header>
         <main className="mx-auto w-full max-w-7xl flex-1 p-4 sm:p-6">
           <div key={location.pathname} className="animate-page">
-            <Outlet />
+            <Suspense fallback={<PageLoader />}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
       </div>

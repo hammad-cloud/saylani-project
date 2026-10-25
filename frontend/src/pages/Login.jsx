@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { errorMessage } from '../api/client';
@@ -11,6 +11,11 @@ export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
+
+  // Fetch the dashboard code while the user types, so it opens instantly after sign-in.
+  useEffect(() => {
+    import('./Dashboard');
+  }, []);
 
   if (user) return <Navigate to={user.mustChangePassword ? '/change-password' : '/'} replace />;
 

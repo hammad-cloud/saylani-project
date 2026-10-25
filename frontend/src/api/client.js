@@ -5,6 +5,8 @@ export const api = axios.create({ baseURL: `${import.meta.env.VITE_API_URL || ''
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  // The server gives the AI up to 45 s, so don't give up on it sooner here.
+  if (config.url?.startsWith('/ai/')) config.timeout = 50000;
   return config;
 });
 
