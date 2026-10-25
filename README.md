@@ -16,7 +16,7 @@ The app starts **empty**: no seed or dummy data. Admin sets up the company, HR r
 | --- | --- |
 | Frontend | React 19, Vite, Tailwind CSS v4 (design tokens: navy / white / teal), React Router, Recharts, sonner, `@vladmandic/face-api` (camera check-in + blink liveness) |
 | Backend | Node.js 20+, Express 5, Mongoose 9 (MongoDB 7), Zod validation, JWT + bcrypt, PDFKit, express-rate-limit, helmet |
-| AI | Google Gemini (`gemini-3.8-flash`) via its OpenAI-compatible API with tool calling. Key lives **only** on the server. |
+| AI | Google Gemini (`gemini-3.5-flash-lite`) via its OpenAI-compatible API with tool calling. Key lives **only** on the server. |
 | Tests & CI | `node:test`: business-rule unit tests, an end-to-end run of the demo script against a throwaway DB, and the blink detector. GitHub Actions runs tests, build and `npm audit` on every push |
 
 ## Run it locally (about 5 minutes)
@@ -56,7 +56,7 @@ In `backend/.env`:
 ```env
 AI_API_KEY=your-gemini-api-key
 AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
-AI_MODEL=gemini-3.8-flash
+AI_MODEL=gemini-3.5-flash-lite
 ```
 
 Without a key everything works except the AI features, which show a friendly fallback.
