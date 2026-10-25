@@ -86,7 +86,7 @@ Base URL: `/api` (local: `http://localhost:5000/api`, live: `https://hcm-lite-ap
 
 ## AI assistant (M8)
 
-All AI calls run on the server (the key never reaches the browser), time out after 15 s, are limited to `AI_HOURLY_LIMIT` per user per hour, and are logged in `ai_logs`.
+All AI calls run on the server (the key never reaches the browser), time out after 45 s, are limited to `AI_HOURLY_LIMIT` per user per hour, and are logged in `ai_logs`.
 
 | Method | Path | Who | Notes |
 | --- | --- | --- | --- |

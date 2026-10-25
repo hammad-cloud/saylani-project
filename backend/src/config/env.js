@@ -14,6 +14,6 @@ export const env = {
   adminPassword: process.env.ADMIN_PASSWORD,
   aiApiKey: process.env.AI_API_KEY,
   aiBaseUrl: (process.env.AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai').replace(/\/$/, ''),
-  aiModel: process.env.AI_MODEL || 'gemini-2.5-flash',
+  aiModel: process.env.AI_MODEL || 'gemini-3.8-flash',
   aiHourlyLimit: Number(process.env.AI_HOURLY_LIMIT) || 20,
 };

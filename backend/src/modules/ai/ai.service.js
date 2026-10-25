@@ -11,7 +11,7 @@ import { chatCompletion } from './llm.client.js';
 import { toolDefinitions, runTool } from './ai.tools.js';
 import { chatSystemPrompt, renderPolicy, summaryPrompt, smartLeavePrompt } from './ai.prompts.js';
 
-const TIMEOUT_MS = 15000;
+const TIMEOUT_MS = 45000;
 const MAX_TOOL_ROUNDS = 4;
 const FALLBACK = 'The assistant is not available right now. Please try again in a moment, or use the dashboard and forms directly.';
 
@@ -20,7 +20,7 @@ async function enforceRateLimit(user) {
   if (count >= env.aiHourlyLimit) throw new ApiError(429, `AI limit reached (${env.aiHourlyLimit} requests per hour). Please try again later.`);
 }
 
-// Runs fn with a 15 s budget and logs every call to ai_logs.
+// Runs fn with a 45 s budget and logs every call to ai_logs.
 async function withLog(user, feature, input, fn) {
   await enforceRateLimit(user);
   const started = Date.now();

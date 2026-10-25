@@ -16,7 +16,7 @@ The app starts **empty**: no seed or dummy data. Admin sets up the company, HR r
 | --- | --- |
 | Frontend | React 19, Vite, Tailwind CSS v4 (design tokens: navy / white / teal), React Router, Recharts, sonner, `@vladmandic/face-api` (camera check-in + blink liveness) |
 | Backend | Node.js 20+, Express 5, Mongoose 9 (MongoDB 7), Zod validation, JWT + bcrypt, PDFKit, express-rate-limit, helmet |
-| AI | Google Gemini (`gemini-2.5-flash`) via its OpenAI-compatible API with tool calling. Key lives **only** on the server. |
+| AI | Google Gemini (`gemini-3.8-flash`) via its OpenAI-compatible API with tool calling. Key lives **only** on the server. |
 | Tests & CI | `node:test`: business-rule unit tests, an end-to-end run of the demo script against a throwaway DB, and the blink detector. GitHub Actions runs tests, build and `npm audit` on every push |
 
 ## Run it locally (about 5 minutes)
@@ -56,7 +56,7 @@ In `backend/.env`:
 ```env
 AI_API_KEY=your-gemini-api-key
 AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
-AI_MODEL=gemini-2.5-flash
+AI_MODEL=gemini-3.8-flash
 ```
 
 Without a key everything works except the AI features, which show a friendly fallback.
@@ -143,7 +143,7 @@ Access is enforced **on the server** for every request (`authenticate` + `author
 - `POST /api/ai/chat`: the model picks from 7 tools (`get_headcount`, `get_attendance_summary`, `get_late_comers`, `get_leave_summary`, `get_my_leave_balance`, `get_payroll_summary`, `search_employees`). The backend runs each tool through the **same services and permission checks** as the REST API, so answers match the dashboards and an employee can never read a colleague's data.
 - `POST /api/ai/summary`: Admin / HR; only the KPI JSON on screen is sent.
 - `POST /api/ai/smart-leave`: output validated with Zod against real leave-type codes and dates, retried once, otherwise the normal form is shown. **The AI never saves anything**; the user presses Apply.
-- Guardrails: key in `AI_API_KEY` on the server only; 15 s timeout with a friendly fallback; 20 requests per user per hour; every call logged in `ai_logs`; answers labelled *AI-generated*.
+- Guardrails: key in `AI_API_KEY` on the server only; 45 s timeout with a friendly fallback; 20 requests per user per hour; every call logged in `ai_logs`; answers labelled *AI-generated*.
 
 ## Business rules
 
