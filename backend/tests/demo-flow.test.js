@@ -2,76 +2,21 @@
 // Needs MongoDB (docker compose up -d); skipped when it is not reachable.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import mongoose from 'mongoose';
+import { start, stop, call, rawFetch, login, firstLogin, nextWorkingDay } from './helpers.js';
 
-process.env.MONGO_URI = process.env.TEST_MONGO_URI || 'mongodb://127.0.0.1:27017/hcm-lite-test';
-process.env.JWT_SECRET ||= 'test-secret';
-process.env.NODE_ENV = 'test';
-
-let base;
-let server;
-let mongoOk = true;
+let mongoOk;
 
 before(async () => {
-  try {
-    await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 2000 });
-  } catch {
-    mongoOk = false;
-    return;
-  }
-  await mongoose.connection.dropDatabase();
-  await import('../src/models/index.js');
-  await Promise.all(Object.values(mongoose.models).map((m) => m.init()));
-  const { app } = await import('../src/app.js');
-  server = app.listen(0);
-  base = `http://127.0.0.1:${server.address().port}/api`;
+  mongoOk = await start();
 });
 
-after(async () => {
-  server?.close();
-  if (mongoOk) {
-    await mongoose.connection.dropDatabase();
-    await mongoose.disconnect();
-  }
-});
-
-async function call(method, path, token, body) {
-  const res = await fetch(base + path, {
-    method,
-    headers: { 'content-type': 'application/json', ...(token && { authorization: `Bearer ${token}` }) },
-    body: body && JSON.stringify(body),
-  });
-  const text = await res.text();
-  return { status: res.status, body: text && res.headers.get('content-type')?.includes('json') ? JSON.parse(text) : text };
-}
-
-async function login(email, password) {
-  const r = await call('POST', '/auth/login', null, { email, password });
-  assert.equal(r.status, 200, JSON.stringify(r.body));
-  return r.body.token;
-}
-
-// First-login flow: temporary password must be changed before anything else works.
-async function firstLogin(email, tempPassword, newPassword) {
-  const t = await login(email, tempPassword);
-  assert.equal((await call('GET', '/employees/me', t)).status, 403);
-  assert.equal((await call('POST', '/auth/change-password', t, { currentPassword: tempPassword, newPassword })).status, 200);
-  return login(email, newPassword);
-}
-
-// Next working day (Mon-Fri) strictly after today, as YYYY-MM-DD.
-function nextWorkingDay(offset = 1) {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() + offset);
-  while ([0, 6].includes(d.getUTCDay())) d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString().slice(0, 10);
-}
+after(stop);
 
 test('demo script: setup → HR → employees → check-in → leave → payroll → RBAC → audit', async (t) => {
   if (!mongoOk) return t.skip('MongoDB not reachable');
 
   // Malformed JSON is a clear 400, not a generic 500.
-  const bad = await fetch(`${base}/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{bad' });
+  const bad = await rawFetch('/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{bad' });
   assert.equal(bad.status, 400);
 
   // 1. Fresh install: first-run setup creates company + Admin, and only once.
@@ -146,7 +91,7 @@ test('demo script: setup → HR → employees → check-in → leave → payroll
   // 5. Employee downloads own payslip; cannot see a colleague's data or salary.
   const slips = (await call('GET', '/payroll/payslips', ali)).body;
   assert.equal(slips.length, 1);
-  const pdf = await fetch(`${base}/payroll/payslips/${slips[0]._id}/pdf`, { headers: { authorization: `Bearer ${ali}` } });
+  const pdf = await rawFetch(`/payroll/payslips/${slips[0]._id}/pdf`, { headers: { authorization: `Bearer ${ali}` } });
   assert.equal(pdf.status, 200);
   assert.equal(pdf.headers.get('content-type'), 'application/pdf');
 

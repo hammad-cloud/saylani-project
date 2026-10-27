@@ -57,7 +57,7 @@ export default function MyProfile() {
               <Employee360
                 data={d}
                 actions={
-                  user.role === 'employee' && (
+                  ['hr', 'employee'].includes(user.role) && (
                     <button className="btn-secondary btn-sm" onClick={() => setEditing(true)}>
                       <Pencil className="h-3.5 w-3.5" /> Edit phone & address
                     </button>

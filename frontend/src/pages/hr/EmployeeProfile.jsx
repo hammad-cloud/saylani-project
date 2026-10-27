@@ -131,7 +131,7 @@ export default function EmployeeProfile() {
             <Employee360
               data={d}
               actions={
-                user.role === 'hr' && (
+                user.role === 'hr' && String(d.employee._id) !== String(user.employee) && (
                   <button className="btn-secondary btn-sm" onClick={() => setEditing(true)}>
                     <Pencil className="h-3.5 w-3.5" /> Edit
                   </button>

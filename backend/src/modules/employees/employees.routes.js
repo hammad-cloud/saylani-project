@@ -61,7 +61,7 @@ router.get('/me', async (req, res) => {
   res.json(await getEmployee360(req.user, req.user.employee));
 });
 
-router.patch('/me', authorize('employee'), validate(contactSchema), async (req, res) => {
+router.patch('/me', authorize('hr', 'employee'),validate(contactSchema), async (req, res) => {
   res.json(await service.updateOwnContact(req.user, req.body));
 });
 

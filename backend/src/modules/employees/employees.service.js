@@ -5,7 +5,7 @@ import { Designation } from '../../models/Designation.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { audit } from '../../utils/audit.js';
 import { generateTempPassword } from '../../utils/password.js';
-import { escapeRegex, scopedEmployeeId } from '../../utils/scope.js';
+import { escapeRegex, scopedEmployeeId, selfEmployeeId } from '../../utils/scope.js';
 
 const populate = [
   { path: 'department', select: 'name' },
@@ -74,6 +74,10 @@ export async function createEmployee(actor, data) {
 }
 
 export async function updateEmployee(actor, id, data) {
+  // HR is also an employee: no one edits their own salary, status or job details.
+  if (actor.employee && String(actor.employee) === String(id)) {
+    throw new ApiError(403, 'You cannot edit your own employee record; ask another HR officer');
+  }
   const before = await Employee.findById(id);
   if (!before) throw new ApiError(404, 'Employee not found');
   if (data.email && data.email !== before.email && (await User.exists({ email: data.email }))) {
@@ -89,9 +93,9 @@ export async function updateEmployee(actor, id, data) {
   return after;
 }
 
-// Employees may edit only their phone and address.
+// Employees (and HR, on their own profile) may edit only their phone and address.
 export async function updateOwnContact(user, { phone, address }) {
-  const id = scopedEmployeeId(user);
+  const id = selfEmployeeId(user);
   const before = await Employee.findById(id);
   const after = await Employee.findByIdAndUpdate(id, { phone, address }, { returnDocument: 'after', runValidators: true }).populate(populate);
   await audit(user._id, 'update', 'Employee', { before, after });

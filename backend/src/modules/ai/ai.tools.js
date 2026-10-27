@@ -90,6 +90,7 @@ export async function runTool(user, name, args = {}) {
   if (user.role === 'employee') {
     filters.employee = selfEmployeeId(user);
     filters.department = null;
+    filters.finalizedOnly = true;
   }
   return tool.run(filters, args, user);
 }

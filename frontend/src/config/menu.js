@@ -43,6 +43,7 @@ export const MENU = {
     { to: '/attendance', label: 'My attendance', icon: CalendarCheck, employeeOnly: true },
     { to: '/leave', label: 'My leave', icon: Plane, employeeOnly: true },
     { to: '/payslips', label: 'My payslips', icon: FileText, employeeOnly: true },
+    { to: '/profile', label: 'My profile', icon: UserCircle, employeeOnly: true },
   ],
   employee: [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },

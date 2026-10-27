@@ -8,6 +8,7 @@ import { PayrollRun } from '../../models/PayrollRun.js';
 import { AttendanceCorrection } from '../../models/AttendanceCorrection.js';
 import { AuditLog } from '../../models/AuditLog.js';
 import { Announcement } from '../../models/Announcement.js';
+import { ApiError } from '../../utils/ApiError.js';
 import { dayFromKey, toDayKey, today } from '../../utils/dates.js';
 import { buildDays, summarizeDays, closeStaleRecords } from '../attendance/attendance.service.js';
 import { getBalances } from '../leave/leave.service.js';
@@ -15,11 +16,23 @@ import { getBalances } from '../leave/leave.service.js';
 const oid = (id) => new mongoose.Types.ObjectId(String(id));
 const pct = (num, den) => (den ? Math.round((num / den) * 1000) / 10 : 0);
 
+// Day-by-day stats are built in memory, so a period is capped at about a year.
+export const MAX_RANGE_DAYS = 366;
+
+const parseDay = (key, name) => {
+  const d = typeof key === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(key) ? dayFromKey(key) : null;
+  if (!d || isNaN(d) || d.toISOString().slice(0, 10) !== key) throw new ApiError(422, `${name} must be a date (YYYY-MM-DD)`);
+  return d;
+};
+
 // Normalises { from, to, department, employee } filters. Defaults to the current month up to today.
 export function resolveFilters({ from, to, department, employee } = {}) {
   const now = today();
-  const start = from ? dayFromKey(from) : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const end = to ? dayFromKey(to) : now;
+  const start = from ? parseDay(from, 'from') : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const end = to ? parseDay(to, 'to') : now;
+  if (end < start) throw new ApiError(422, '"to" must be on or after "from"');
+  if ((end - start) / 86400000 + 1 > MAX_RANGE_DAYS) throw new ApiError(422, `The period can be at most ${MAX_RANGE_DAYS} days`);
+  if (department && !/^[a-f\d]{24}$/i.test(String(department))) throw new ApiError(422, 'Invalid department');
   return { start, end, department: department || null, employee: employee || null };
 }
 
@@ -178,7 +191,12 @@ export async function getPayrollSummary(f) {
   for (let y = start.getUTCFullYear(), m = start.getUTCMonth() + 1; y < end.getUTCFullYear() || (y === end.getUTCFullYear() && m <= end.getUTCMonth() + 1); m === 12 ? (y++, (m = 1)) : m++) {
     months.push({ year: y, month: m });
   }
-  const match = { $or: months.length ? months : [{ year: -1 }], ...(department && { department: oid(department) }), ...(employee && { employee: oid(employee) }) };
+  const match = {
+    $or: months.length ? months : [{ year: -1 }],
+    ...(department && { department: oid(department) }),
+    ...(employee && { employee: oid(employee) }),
+    ...(f.finalizedOnly && { finalized: true }), // employees never see draft pay
+  };
 
   const [byMonth, byDept, byDesignation, runs] = await Promise.all([
     Payslip.aggregate([
