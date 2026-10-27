@@ -15,7 +15,8 @@ Base URL: `/api` (local: `http://localhost:5000/api`, live: `https://hcm-lite-ap
 | POST | `/setup` | public, once | Company name + first Admin. `409` after the first run |
 | POST | `/auth/login` | public | Rate limited (20 / 15 min) |
 | GET | `/auth/me` | signed in | Current user |
-| POST | `/auth/change-password` | signed in | Clears the temporary-password flag |
+| POST | `/auth/change-password` | signed in | Clears the temporary-password flag. Returns a fresh `token`; every older token of that user stops working |
+| POST | `/auth/logout` | signed in | Revokes all of the user's tokens on the server (every device) |
 
 ## Organization (M2)
 
@@ -23,11 +24,11 @@ Base URL: `/api` (local: `http://localhost:5000/api`, live: `https://hcm-lite-ap
 | --- | --- | --- | --- |
 | GET / PUT | `/settings` | GET: A, H · PUT: A | Office hours, grace, weekend, office location, radius |
 | GET | `/departments`, `/designations`, `/leave-types`, `/holidays` | A, H | |
-| POST / PUT / DELETE | same paths (`/:id` for PUT, DELETE) | A | Audited |
+| POST / PUT / DELETE | same paths (`/:id` for PUT, DELETE) | A | Audited. Deleting a department, designation or leave type still in use is `409` with the reason |
 | GET | `/users` | A | `?role=&search=` |
 | POST | `/users/hr` | A | Returns the temporary password once |
 | PATCH | `/users/:id/status` | A | `{ isActive }` |
-| POST | `/users/:id/reset-password` | A | Returns a new temporary password once |
+| POST | `/users/:id/reset-password` | A | Returns a new temporary password once; signs that user out everywhere |
 
 ## Employees (M3)
 
@@ -35,9 +36,9 @@ Base URL: `/api` (local: `http://localhost:5000/api`, live: `https://hcm-lite-ap
 | --- | --- | --- | --- |
 | GET | `/employees` | A, H (all) · E (own) | `?search=&department=&status=&page=&limit=` |
 | POST | `/employees` | H | Creates the employee **and** their login (temporary password) |
-| PUT | `/employees/:id` | H | |
+| PUT | `/employees/:id` | H | Not on your own record (`403`). Setting `status: "exited"` without `exitDate` uses today |
 | GET | `/employees/:id` | A, H · E (own) | Employee 360 |
-| GET / PATCH | `/employees/me` | GET: anyone with a profile · PATCH: E | PATCH accepts phone and address only |
+| GET / PATCH | `/employees/me` | GET: anyone with a profile · PATCH: H, E | PATCH accepts phone and address only |
 | POST | `/employees/import` | H | `{ csv, dryRun }`. Dry run returns `{ row, field, reason }` errors |
 | GET | `/employees/export` | H | CSV download |
 
@@ -52,7 +53,7 @@ Base URL: `/api` (local: `http://localhost:5000/api`, live: `https://hcm-lite-ap
 | GET | `/attendance/calendar` | A, H · E (own) | `?year=&month=&employee=` |
 | GET | `/attendance/board` | A, H | `?date=&department=` |
 | GET / POST | `/attendance/corrections` | GET: A, H, E (own) · POST: H, E | |
-| PATCH | `/attendance/corrections/:id` | H | `{ approve, comment? }` |
+| PATCH | `/attendance/corrections/:id` | H, A | `{ approve, comment? }`. Nobody reviews their own; Admin reviews HR staff requests only |
 
 ## Leave (M5)
 
@@ -62,7 +63,7 @@ Base URL: `/api` (local: `http://localhost:5000/api`, live: `https://hcm-lite-ap
 | GET | `/leaves/balance` | A, H · E (own) | `?employee=&year=` |
 | POST | `/leaves` | H, E | Working days only; `422` on overlap or over-balance |
 | POST | `/leaves/:id/cancel` | H, E (own) | |
-| PATCH | `/leaves/:id` | H | `{ approve, comment? }`. Nobody approves their own leave |
+| PATCH | `/leaves/:id` | H, A | `{ approve, comment? }`. Nobody approves their own leave; Admin reviews HR staff requests only |
 
 ## Payroll (M6)
 
@@ -79,7 +80,7 @@ Base URL: `/api` (local: `http://localhost:5000/api`, live: `https://hcm-lite-ap
 
 | Method | Path | Who | Notes |
 | --- | --- | --- | --- |
-| GET | `/analytics/admin` | A | `?from=&to=&department=` |
+| GET | `/analytics/admin` | A | `?from=&to=&department=` (ISO dates, at most 366 days; bad values are `422`) |
 | GET | `/analytics/hr` | A, H | same filters |
 | GET | `/analytics/me` | anyone with a profile | Personal dashboard |
 | GET | `/analytics/attendance`, `/leave`, `/payroll`, `/insights` | A, H | same filters |

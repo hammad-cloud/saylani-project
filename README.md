@@ -17,7 +17,7 @@ The app starts **empty**: no seed or dummy data. Admin sets up the company, HR r
 | Frontend | React 19, Vite, Tailwind CSS v4 (design tokens: navy / white / teal), React Router, Recharts, sonner, `@vladmandic/face-api` (camera check-in + blink liveness) |
 | Backend | Node.js 20+, Express 5, Mongoose 9 (MongoDB 7), Zod validation, JWT + bcrypt, PDFKit, express-rate-limit, helmet |
 | AI | Google Gemini (`gemini-3.5-flash-lite`) via its OpenAI-compatible API with tool calling. Key lives **only** on the server. |
-| Tests & CI | `node:test`: business-rule unit tests, an end-to-end run of the demo script against a throwaway DB, and the blink detector. GitHub Actions runs tests, build and `npm audit` on every push |
+| Tests & CI | `node:test`: business-rule unit tests, API integration tests (demo script, role matrix, data scope, sessions, integrity) against throwaway databases, and the blink detector. A load / stress script. GitHub Actions runs tests, build and `npm audit` on every push |
 
 ## Run it locally (about 5 minutes)
 
@@ -64,11 +64,22 @@ Without a key everything works except the AI features, which show a friendly fal
 ### Run the tests
 
 ```bash
-cd backend && npm test     # business rules + end-to-end demo flow
+cd backend && npm test     # 22 tests: business rules + API integration (needs MongoDB, see step 1)
 cd frontend && npm test    # blink (liveness) detector
+cd backend && npm run load # optional load / stress check (a few minutes)
 ```
 
-`tests/demo-flow.test.js` plays the whole judging script through the real API on a separate `hcm-lite-test` database (created and dropped by the test): setup → HR login → employees → check-in → leave → payroll → finalize, with the RBAC "cannot" rules checked along the way (an employee can't read a colleague's profile, payslip or calendar, HR can't finalize payroll or open the audit log, audit entries can't be deleted, and so on). It is skipped automatically if MongoDB is not running.
+| Suite | What it proves |
+| --- | --- |
+| `tests/rules.test.js` | Attendance status, Haversine distance, working days, tax slabs, payslip maths (unit) |
+| `tests/demo-flow.test.js` | The whole judging script through the real API: setup → HR → employees → check-in → leave → payroll → finalize → payslip PDF, with the "cannot" rules along the way |
+| `tests/rbac.test.js` | **Role matrix**: 22 endpoints × 3 roles match the brief's access table; employees only ever read their own rows; forged / unsigned / `alg: none` tokens, NoSQL-operator logins and deactivated accounts are rejected; dashboard filters are validated; the AI payroll tool never shows an employee draft pay; concurrent dashboards agree and a new record shows on the next request |
+| `tests/auth.test.js` | Six simultaneous first-run setups create exactly one Admin; password change, Admin reset and logout revoke older sessions; tokens from before that change keep working |
+| `tests/integrity.test.js` | Single-HR company: Admin reviews the HR officer's leave and corrections, nobody reviews their own; exit date defaults to today and stops pay; org records in use cannot be deleted |
+
+Each API suite uses its own throwaway database (`hcm-lite-test`, `-rbac`, `-auth`, `-integrity`), created and dropped by the test, and never calls the real AI provider. They are skipped automatically if MongoDB is not running.
+
+`npm run load` seeds a separate `hcm-lite-test-load` database with 200 employees and 90 days of activity, then measures the heaviest endpoints at 1 and 10 concurrent users plus a 100-user stress run (results below). `SNAPSHOT=out.json npm run load` saves every endpoint's answer instead, to prove an optimization changes no numbers.
 
 ## 5-minute demo script
 
@@ -81,15 +92,15 @@ cd frontend && npm test    # blink (liveness) detector
 
 ## Roles and access
 
-Access is enforced **on the server** for every request (`authenticate` + `authorize(roles)` + `scopedEmployeeId` data-scope guard); the menus only hide what a role can't use. The AI assistant calls the same services with the caller's scope.
+Access is enforced **on the server** for every request (`authenticate` + `authorize(roles)` + `scopedEmployeeId` data-scope guard); the menus only hide what a role can't use. The AI assistant calls the same services with the caller's scope. Nobody reviews their own leave or attendance correction, and nobody (HR included) edits their own salary, status or job details.
 
 | | Admin | HR | Employee |
 | --- | --- | --- | --- |
 | Company settings, org lists | Manage | View | - |
 | HR logins, deactivate / reset any login | Manage | - | - |
 | Employees | View all | Register, edit, CSV import/export | Own (edit phone & address) |
-| Attendance | Board + calendars | Board, approve corrections, own check-in | Own check-in, calendar, request correction |
-| Leave | View | Approve / reject with comment, own leave | Apply, cancel, balance, smart leave |
+| Attendance | Board + calendars; review corrections **from HR staff** | Board, approve corrections, own check-in | Own check-in, calendar, request correction |
+| Leave | View; review leave **from HR staff** | Approve / reject with comment, own leave | Apply, cancel, balance, smart leave |
 | Payroll | **Finalize (locks month)** | Salary structure, create/recompute draft | Own finalized payslips (PDF) |
 | Dashboards | Company | HR | Personal |
 | AI assistant | All company data | HR data | Own data + policy |
@@ -143,7 +154,7 @@ Access is enforced **on the server** for every request (`authenticate` + `author
 - `POST /api/ai/chat`: the model picks from 7 tools (`get_headcount`, `get_attendance_summary`, `get_late_comers`, `get_leave_summary`, `get_my_leave_balance`, `get_payroll_summary`, `search_employees`). The backend runs each tool through the **same services and permission checks** as the REST API, so answers match the dashboards and an employee can never read a colleague's data.
 - `POST /api/ai/summary`: Admin / HR; only the KPI JSON on screen is sent.
 - `POST /api/ai/smart-leave`: output validated with Zod against real leave-type codes and dates, retried once, otherwise the normal form is shown. **The AI never saves anything**; the user presses Apply.
-- Guardrails: key in `AI_API_KEY` on the server only; 45 s timeout with a friendly fallback; 20 requests per user per hour; every call logged in `ai_logs`; answers labelled *AI-generated*.
+- Guardrails: key in `AI_API_KEY` on the server only; 45 s timeout with a friendly fallback; 20 requests per user per hour; every call logged in `ai_logs`; answers labelled *AI-generated*. For employees every tool is forced to their own employee id and payroll tools read finalized payslips only.
 
 ## Business rules
 
@@ -170,7 +181,8 @@ backend/
     modules/       one folder per module: *.routes.js → *.service.js (rules) → models
       setup/ auth/ settings/ org/ users/ employees/ attendance/ leave/ payroll/ analytics/ ai/ comms/
     utils/         audit, notifications, scope guard, dates, errors
-  tests/           rules.test.js, demo-flow.test.js
+  tests/           unit + API integration suites (shared harness in helpers.js)
+  scripts/load.js  load / stress check (npm run load)
 frontend/
   src/
     api/           axios client (JWT, errors, file download)
@@ -189,6 +201,8 @@ docker-compose.yml MongoDB for local development
 - bcrypt password hashes; JWT auth; login rate limit; helmet security headers (HSTS, CSP, no-sniff, frame protection); CORS limited to `CLIENT_URL`; real client IPs behind the proxy (`trust proxy`).
 - Every route checks the role **and** the data scope; employees only ever read rows with their own `employee_id`.
 - Deactivated users are rejected on every request; temporary passwords block all routes except change-password.
+- Each token carries a per-user version: changing the password, an Admin reset and logout revoke every older session (logout signs out all devices).
+- First-run setup can only ever create one Admin, even under concurrent requests (unique index).
 - Zod validation on every write; CSV import validated row by row.
 - Audit log is append-only (updates and deletes are blocked at the model level) and readable by Admin only.
 - Errors never expose internals: unexpected errors return a generic message; bad JSON is a clear `400`.
@@ -202,6 +216,28 @@ docker-compose.yml MongoDB for local development
 
 Both Vercel projects are connected to this GitHub repository (root directories `backend/` and `frontend/`), so **every push to `main` redeploys the live app automatically**. Pull requests and other branches get preview deployments.
 
+## Performance
+
+Measured with `npm run load` (200 employees, 90 days, ~12,000 attendance records; one local Node process with the load generator in the same process, so numbers are pessimistic). p50 response times:
+
+| Endpoint | 1 user | 10 users |
+| --- | --- | --- |
+| HR dashboard (90 days) | ~430 ms | ~350 ms (identical requests share one computation) |
+| HR dashboard (month) | ~100-230 ms | ~600 ms |
+| Attendance board | ~50 ms | ~330 ms |
+| Admin dashboard / employee search | ~30 / ~10 ms | ~60 / ~50 ms |
+| Payroll draft (whole month) | ~150 ms | - |
+
+Stress, 100 concurrent users: the same dashboard 0.6 s and every request different 2.0 s, **0 errors**. Before optimization the 90-day dashboard took 2.5 s for one user and the stress run dropped 22 connections. Dashboards are computed live on every request (no cache), so they always match the records just entered.
+
+## Deviations from the brief
+
+| Brief | This app | Why |
+| --- | --- | --- |
+| AI timeout 15 s | 45 s | Raised during development (commit `9c40b70`) so tool-calling answers have time to finish; the friendly fallback still shows on timeout |
+| Admin: leave approvals "View" | Admin reviews leave and attendance corrections **from HR staff only** | With a single HR officer, nobody else could approve HR's own requests |
+| (not specified) | Password change, Admin reset and logout end older sessions | Otherwise an old or stolen token stays valid until it expires |
+
 ## Not done / known limits
 
 - No native mobile app; camera attendance runs in the web app (works in phone browsers).
@@ -209,3 +245,10 @@ Both Vercel projects are connected to this GitHub repository (root directories `
 - Face-detection models load from the jsDelivr CDN, so camera check-in needs internet.
 - A leave spanning two calendar years counts against the start year's quota.
 - Tax slabs are the brief's illustrative slabs, not official FBR tables.
+- The sign-in token is kept in the browser's `localStorage`, so a cross-site-scripting bug could read it (React escapes rendered output, but an `httpOnly` cookie would be stronger).
+- On Vercel each serverless instance keeps its own login rate limit, dashboard request sharing and once-a-day "missing checkout" pass; the AI limit (20 / hour) is stored in the database and holds across instances.
+- Multi-step writes (payroll recompute, applying leave) are not wrapped in database transactions; two simultaneous identical requests could race.
+- One fixed office time zone (`TZ_OFFSET_MINUTES`, default UTC+5), no daylight saving.
+- An HR officer registering their **own** employee profile sets their own starting salary (later edits by themselves are blocked); in a company with one HR there is nobody else who could.
+- Employees marked exited **before** the exit-date default was added, with no exit date, are still paid until someone saves their record again.
+- UI fixes are verified by hand in the browser (desktop and 375 px); there are no automated component tests.
