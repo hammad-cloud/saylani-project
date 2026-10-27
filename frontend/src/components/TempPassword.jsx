@@ -4,7 +4,11 @@ import { Modal } from './ui';
 
 // Shown once after a login is created or reset; the server never returns it again.
 export default function TempPassword({ value, onClose }) {
-  const copy = () => navigator.clipboard?.writeText(`Email: ${value.email}\nTemporary password: ${value.password}`).then(() => toast.success('Copied'));
+  // Copies just the password, ready to paste into the sign-in form.
+  const copy = () =>
+    Promise.resolve(navigator.clipboard?.writeText(value.password) ?? Promise.reject())
+      .then(() => toast.success('Password copied'))
+      .catch(() => toast.error('Could not copy: select the password and copy it manually'));
   return (
     <Modal open={Boolean(value)} onClose={onClose} title="Login created">
       {value && (
@@ -16,7 +20,7 @@ export default function TempPassword({ value, onClose }) {
           </div>
           <p className="text-xs text-slate-500">This password will not be shown again.</p>
           <button className="btn-secondary btn-sm" onClick={copy}>
-            <Copy className="h-3.5 w-3.5" /> Copy
+            <Copy className="h-3.5 w-3.5" /> Copy password
           </button>
         </div>
       )}
