@@ -19,5 +19,6 @@ const attendanceSchema = new mongoose.Schema(
 // One record per employee per day: a second check-in hits this index (409).
 attendanceSchema.index({ employee: 1, date: 1 }, { unique: true });
 attendanceSchema.index({ date: 1, department: 1 });
+attendanceSchema.index({ checkOut: 1, date: 1 }); // finds open (not checked out) past days quickly
 
 export const Attendance = mongoose.model('Attendance', attendanceSchema);

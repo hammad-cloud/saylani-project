@@ -146,6 +146,19 @@ test('regression: the AI payroll tool never shows an employee their draft (unfin
   await assert.rejects(runTool(aliUser, 'search_employees', { query: 'Sara' }), /not allowed/);
 });
 
+test('dashboards: concurrent identical requests agree, and new records show up on the next request (no caching)', async (t) => {
+  if (!mongoOk) return t.skip('MongoDB not reachable');
+  const burst = await Promise.all(Array.from({ length: 5 }, () => call('GET', '/analytics/hr', w.hr)));
+  assert.ok(burst.every((r) => r.status === 200));
+  assert.equal(new Set(burst.map((r) => JSON.stringify(r.body.kpis))).size, 1);
+
+  const casual = (await call('GET', '/leave-types', w.hr)).body.find((x) => x.code === 'casual');
+  const day = new Date(Date.now() + 20 * 86400000).toISOString().slice(0, 10);
+  assert.equal((await call('POST', '/leaves', w.emp, { leaveType: casual._id, start: day, end: day })).status, 201);
+  const after = await call('GET', '/analytics/hr', w.hr);
+  assert.equal(after.body.kpis.pendingApprovals, burst[0].body.kpis.pendingApprovals + 1);
+});
+
 test('security: forged, foreign or deactivated tokens and injection payloads are rejected', async (t) => {
   if (!mongoOk) return t.skip('MongoDB not reachable');
   const { sub } = jwt.decode(w.emp);

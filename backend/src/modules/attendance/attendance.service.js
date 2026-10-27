@@ -13,8 +13,13 @@ import { computeStatus, distanceMeters, faceDistance, isLate, FACE_MATCH_THRESHO
 const MAX_GPS_ACCURACY_M = 100;
 
 // Past days that were never checked out become missing_checkout (lazy, so no cron is needed).
-export function closeStaleRecords() {
-  return Attendance.updateMany({ date: { $lt: today() }, checkOut: null, status: { $ne: 'missing_checkout' } }, { status: 'missing_checkout' });
+// Records only go stale when the day rolls over (check-in is today-only), so once per day per process is enough.
+let closedThroughDay;
+export async function closeStaleRecords() {
+  const key = toDayKey(new Date());
+  if (closedThroughDay === key) return;
+  await Attendance.updateMany({ date: { $lt: today() }, checkOut: null, status: { $ne: 'missing_checkout' } }, { status: 'missing_checkout' });
+  closedThroughDay = key;
 }
 
 async function verifyCameraCheckIn(employeeId, settings, { lat, lng, accuracy, faceCount, descriptor, liveness }) {
@@ -85,31 +90,40 @@ export async function buildDays(employees, start, end) {
   await closeStaleRecords();
   const [settings, holidayKeys] = await Promise.all([getSettings(), getHolidayKeys(start, end)]);
   const ids = employees.map((e) => e._id);
+  // Plain objects (lean): these are read-only and can be thousands of rows for a long period.
   const [records, leaves] = await Promise.all([
-    Attendance.find({ employee: { $in: ids }, date: { $gte: start, $lte: end } }),
-    Leave.find({ employee: { $in: ids }, status: 'approved', start: { $lte: end }, end: { $gte: start } }).populate('leaveType', 'code paid'),
+    Attendance.find({ employee: { $in: ids }, date: { $gte: start, $lte: end } }, 'employee date status checkIn checkOut source').lean(),
+    Leave.find({ employee: { $in: ids }, status: 'approved', start: { $lte: end }, end: { $gte: start } }, 'employee leaveType start end')
+      .populate('leaveType', 'code paid')
+      .lean(),
   ]);
 
   const recordMap = new Map(records.map((r) => [`${r.employee}|${r.date.toISOString().slice(0, 10)}`, r]));
+  const leavesByEmployee = new Map();
+  for (const l of leaves) leavesByEmployee.set(String(l.employee), [...(leavesByEmployee.get(String(l.employee)) || []), l]);
   const todayKey = toDayKey(new Date());
   const result = new Map();
 
+  // The calendar is the same for everyone: work out each day's key and working-day flag once, not per employee.
+  const weekend = [...settings.weekend]; // plain array: Mongoose array lookups are slow in this hot loop
+  const calendar = [...eachDay(start, end)].map((d) => ({ d, key: d.toISOString().slice(0, 10), workingDay: isWorkingDay(d, weekend, holidayKeys) }));
+
   for (const emp of employees) {
-    const empLeaves = leaves.filter((l) => String(l.employee) === String(emp._id));
+    const empId = String(emp._id);
+    const empLeaves = leavesByEmployee.get(empId) || [];
     const joinKey = emp.joinDate.toISOString().slice(0, 10);
     const exitKey = emp.exitDate?.toISOString().slice(0, 10);
     // Days before the employee was registered in the app had no way to be recorded: paid, never "absent".
     const trackedFromKey = toDayKey(emp.createdAt || new Date(0));
     const days = [];
 
-    for (const d of eachDay(start, end)) {
-      const key = d.toISOString().slice(0, 10);
-      const record = recordMap.get(`${emp._id}|${key}`);
-      const leave = empLeaves.find((l) => l.start <= d && l.end >= d);
+    for (const { d, key, workingDay } of calendar) {
+      const record = recordMap.get(`${empId}|${key}`);
+      const leave = empLeaves.length ? empLeaves.find((l) => l.start <= d && l.end >= d) : undefined;
       let status;
       if (key < joinKey || (exitKey && key > exitKey)) status = 'not_employed';
       else if (record) status = record.status;
-      else if (!isWorkingDay(d, settings.weekend, holidayKeys)) status = holidayKeys.has(key) ? 'holiday' : 'weekend';
+      else if (!workingDay) status = holidayKeys.has(key) ? 'holiday' : 'weekend';
       else if (leave) status = 'on_leave';
       else if (key > todayKey) status = 'upcoming';
       else if (key === todayKey) status = 'not_checked_in';
@@ -118,7 +132,7 @@ export async function buildDays(employees, start, end) {
 
       days.push({
         date: key,
-        workingDay: isWorkingDay(d, settings.weekend, holidayKeys),
+        workingDay,
         status,
         checkIn: record?.checkIn,
         checkOut: record?.checkOut,
@@ -127,7 +141,7 @@ export async function buildDays(employees, start, end) {
         unpaidLeave: status === 'on_leave' && leave?.leaveType?.paid === false,
       });
     }
-    result.set(String(emp._id), days);
+    result.set(empId, days);
   }
   return { result, settings, holidayKeys };
 }

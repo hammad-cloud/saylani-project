@@ -87,11 +87,20 @@ export async function getDemographics(f) {
 
 /* ---------- Attendance ---------- */
 
+// Day-by-day statuses of everyone employed in the period: the expensive part, built once per request.
+async function loadPeriod(f) {
+  const { start, end, department, employee } = resolveFilters(f);
+  const employees = await Employee.find(employedFilter(start, end, { department, employee })).populate('department', 'name').lean();
+  const { result } = await buildDays(employees, start, end);
+  return { start, end, employees, result };
+}
+
 // Attendance rate = (present + late + missing_checkout + 0.5 × half_day) ÷ (working-day records − on_leave)
 export async function getAttendanceSummary(f) {
-  const { start, end, department, employee } = resolveFilters(f);
-  const employees = await Employee.find(employedFilter(start, end, { department, employee })).populate('department', 'name');
-  const { result } = await buildDays(employees, start, end);
+  return attendanceFrom(await loadPeriod(f));
+}
+
+function attendanceFrom({ start, end, employees, result }) {
 
   const total = summarizeDays([]);
   const byDept = new Map();
@@ -142,7 +151,7 @@ export async function getLateComers(f, limit = 5) {
   return Attendance.aggregate([
     { $match: { status: 'late', date: { $gte: start, $lte: end }, ...(department && { department: oid(department) }), ...(employee && { employee: oid(employee) }) } },
     { $group: { _id: '$employee', lateCount: { $sum: 1 } } },
-    { $sort: { lateCount: -1 } },
+    { $sort: { lateCount: -1, _id: 1 } }, // stable ties: dashboard and AI list the same people
     { $limit: limit },
     { $lookup: { from: 'employees', localField: '_id', foreignField: '_id', as: 'emp' } },
     { $project: { _id: 0, employeeId: '$_id', name: { $first: '$emp.name' }, code: { $first: '$emp.code' }, lateCount: 1 } },
@@ -238,10 +247,11 @@ export async function getPayrollSummary(f) {
 
 // Flags employees whose absence in the period is well above the team's average (z-score > 1.5) or who are absent on Mondays/Fridays a lot.
 export async function getInsights(f) {
-  const { start, end, department } = resolveFilters(f);
-  const employees = await Employee.find(employedFilter(start, end, { department }));
+  return insightsFrom(await loadPeriod({ ...f, employee: undefined }));
+}
+
+function insightsFrom({ employees, result }) {
   if (!employees.length) return { anomalies: [], attritionRisk: [] };
-  const { result } = await buildDays(employees, start, end);
 
   const stats = employees.map((e) => {
     const days = result.get(String(e._id));
@@ -285,15 +295,16 @@ export async function getInsights(f) {
 
 export async function hrDashboard(f) {
   const todayKey = toDayKey(new Date());
-  const [headcount, todaySummary, attendance, leave, lateComers, pendingCorrections, insights] = await Promise.all([
+  const [headcount, todaySummary, period, leave, lateComers, pendingCorrections] = await Promise.all([
     getHeadcount(f),
     getAttendanceSummary({ ...f, from: todayKey, to: todayKey }),
-    getAttendanceSummary(f),
+    loadPeriod({ ...f, employee: undefined }),
     getLeaveSummary(f),
     getLateComers(f, 5),
     AttendanceCorrection.countDocuments({ status: 'pending' }),
-    getInsights(f),
   ]);
+  const attendance = attendanceFrom(period);
+  const insights = insightsFrom(period);
   return {
     kpis: {
       headcount: headcount.total,

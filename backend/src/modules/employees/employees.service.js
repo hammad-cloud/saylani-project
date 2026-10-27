@@ -24,8 +24,9 @@ export async function listEmployees(user, { search, department, status, page = 1
     filter.$or = [{ name: rx }, { email: rx }, { code: rx }];
   }
 
+  // _id breaks createdAt ties (e.g. a CSV import) so paging never skips or repeats anyone.
   const [items, total] = await Promise.all([
-    Employee.find(filter).populate(populate).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
+    Employee.find(filter).populate(populate).sort({ createdAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit),
     Employee.countDocuments(filter),
   ]);
   return { items, total, page, pages: Math.ceil(total / limit) || 1 };
