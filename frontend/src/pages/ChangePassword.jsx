@@ -24,6 +24,7 @@ export default function ChangePassword() {
     setBusy(true);
     try {
       const { data } = await api.post('/auth/change-password', { currentPassword: form.currentPassword, newPassword: form.newPassword });
+      localStorage.setItem('token', data.token); // older tokens (other devices) are now revoked
       setUser(data.user);
       toast.success('Password changed');
       navigate('/');

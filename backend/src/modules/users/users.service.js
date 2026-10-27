@@ -33,6 +33,7 @@ export async function resetPassword(actor, id) {
   const tempPassword = generateTempPassword();
   user.password = tempPassword;
   user.mustChangePassword = true;
+  user.tokenVersion += 1; // sign out every existing session of that user
   await user.save();
   await audit(actor._id, 'reset_password', 'User', { id: user._id });
   return { user, tempPassword };

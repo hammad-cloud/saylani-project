@@ -34,7 +34,9 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
-  const logout = () => {
+  // Revokes the token on the server too; clears the local session even if that call fails (e.g. offline).
+  const logout = async () => {
+    await api.post('/auth/logout').catch(() => {});
     localStorage.removeItem('token');
     setUser(null);
   };

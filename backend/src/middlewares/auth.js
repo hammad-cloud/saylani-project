@@ -16,6 +16,8 @@ async function loadUser(req) {
 
   const user = await User.findById(payload.sub);
   if (!user || !user.isActive) throw new ApiError(401, 'Account not found or deactivated');
+  // Tokens issued before the last password change, reset or logout are no longer valid.
+  if ((payload.tv ?? 0) !== user.tokenVersion) throw new ApiError(401, 'Your session has ended, please sign in again');
   req.user = user;
 }
 

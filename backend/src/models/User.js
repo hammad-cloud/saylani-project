@@ -12,9 +12,14 @@ const userSchema = new mongoose.Schema(
     isActive: { type: Boolean, default: true },
     mustChangePassword: { type: Boolean, default: false },
     employee: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
+    // Copied into each JWT; bumping it (password change/reset, logout) revokes every older token.
+    tokenVersion: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
+
+// There is exactly one Admin, created by first-run setup: this makes a concurrent second setup fail.
+userSchema.index({ role: 1 }, { unique: true, partialFilterExpression: { role: 'admin' } });
 
 userSchema.pre('save', async function () {
   if (this.isModified('password')) this.password = await bcrypt.hash(this.password, 10);
@@ -27,6 +32,7 @@ userSchema.methods.comparePassword = function (plain) {
 userSchema.set('toJSON', {
   transform: (_doc, ret) => {
     delete ret.password;
+    delete ret.tokenVersion;
     return ret;
   },
 });

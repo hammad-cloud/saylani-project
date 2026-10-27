@@ -28,8 +28,13 @@ router.get('/me', authenticateAllowTempPassword, (req, res) => {
 });
 
 router.post('/change-password', authenticateAllowTempPassword, validate(changePasswordSchema), async (req, res) => {
-  const user = await authService.changePassword(req.user.id, req.body.currentPassword, req.body.newPassword);
-  res.json({ message: 'Password changed', user });
+  const { token, user } = await authService.changePassword(req.user.id, req.body.currentPassword, req.body.newPassword);
+  res.json({ message: 'Password changed', token, user });
+});
+
+router.post('/logout', authenticateAllowTempPassword, async (req, res) => {
+  await authService.logout(req.user._id);
+  res.json({ message: 'Logged out' });
 });
 
 export default router;
