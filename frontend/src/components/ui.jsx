@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, Eye, EyeOff, Inbox, Loader2, X } from 'lucide-react';
 import { api, errorMessage } from '../api/client';
 
@@ -168,7 +169,9 @@ export function Modal({ open, onClose, title, children, wide }) {
   }, [open, onClose]);
 
   if (!open) return null;
-  return (
+  // Portalled to <body>: the page wrapper's enter animation uses a transform, which would otherwise
+  // trap this "fixed" overlay inside the page box (cut off on short pages and small screens).
+  return createPortal(
     <div className="fixed inset-0 z-50 flex animate-fade items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4" onClick={onClose}>
       <div
         role="dialog"
@@ -185,7 +188,8 @@ export function Modal({ open, onClose, title, children, wide }) {
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

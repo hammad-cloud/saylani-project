@@ -2,6 +2,9 @@ import { ZodError } from 'zod';
 import mongoose from 'mongoose';
 import { ApiError } from '../utils/ApiError.js';
 
+// Readable names for unique-index fields in "already exists" messages.
+const FIELD_LABELS = { code: 'Employee code', email: 'Email', name: 'Name' };
+
 export function notFound(req, _res, next) {
   next(new ApiError(404, `Route not found: ${req.method} ${req.originalUrl}`));
 }
@@ -15,7 +18,7 @@ export function errorHandler(err, _req, res, _next) {
   }
   if (err?.code === 11000) {
     const field = Object.keys(err.keyValue || {})[0];
-    return res.status(409).json({ message: `${field || 'Value'} already exists` });
+    return res.status(409).json({ message: `${FIELD_LABELS[field] || 'This value'} already exists` });
   }
   if (err instanceof mongoose.Error.ValidationError) {
     return res.status(422).json({

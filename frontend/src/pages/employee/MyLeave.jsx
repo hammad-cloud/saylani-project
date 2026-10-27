@@ -20,7 +20,7 @@ function SmartLeave({ onFill }) {
       const { data } = await api.post('/ai/smart-leave', { text });
       onFill(data);
     } catch (err) {
-      setError(`${errorMessage(err)} You can fill the form below yourself.`);
+      setError(`${errorMessage(err).replace(/([^.!?])$/, '$1.')} You can fill the form below yourself.`);
     } finally {
       setBusy(false);
     }

@@ -44,8 +44,9 @@ export function Employee360({ data, actions }) {
         <StatCard label="Late this month" value={a.late} tone="orange" />
         <StatCard label="Absent this month" value={a.absent} tone="red" />
       </div>
+      {/* min-w-0 + overflow-x-auto: tables scroll inside their card on a phone instead of widening the page */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="card p-4">
+        <div className="card min-w-0 overflow-x-auto p-4">
           <h3 className="mb-3 font-semibold">Leave balance</h3>
           <table className="table">
             <thead>
@@ -85,7 +86,7 @@ export function Employee360({ data, actions }) {
             </ul>
           )}
         </div>
-        <div className="card p-4">
+        <div className="card min-w-0 overflow-x-auto p-4">
           <h3 className="mb-3 font-semibold">Payslips</h3>
           {payslips.length === 0 ? (
             <p className="text-sm text-slate-500">No payslips yet.</p>

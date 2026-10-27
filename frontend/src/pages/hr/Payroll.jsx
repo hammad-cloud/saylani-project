@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Play, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, errorMessage } from '../../api/client';
@@ -70,7 +70,12 @@ export default function Payroll() {
                 <tbody>
                   {runs.map((r) => (
                     <tr key={r._id} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50" onClick={() => navigate(`/payroll/${r._id}`)}>
-                      <td className="font-medium text-brand">{periodLabel(r)}</td>
+                      <td className="font-medium text-brand">
+                        {/* A real link so the run opens by keyboard / screen reader too; the row click is a mouse shortcut */}
+                        <Link to={`/payroll/${r._id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">
+                          {periodLabel(r)}
+                        </Link>
+                      </td>
                       <td>
                         <Badge value={r.status} />
                       </td>

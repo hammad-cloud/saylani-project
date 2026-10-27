@@ -42,7 +42,7 @@ export async function getEmployee(user, id) {
 export async function createEmployee(actor, data) {
   const existingUser = await User.findOne({ email: data.email });
   // An HR login without a profile can be registered as an employee (so HR can check in and get paid too).
-  if (existingUser && !(existingUser.role === 'hr' && !existingUser.employee)) throw new ApiError(409, 'email already exists');
+  if (existingUser && !(existingUser.role === 'hr' && !existingUser.employee)) throw new ApiError(409, 'Email already exists');
 
   const employee = await Employee.create(data);
   if (existingUser) {
@@ -85,7 +85,7 @@ export async function updateEmployee(actor, id, data) {
   // Payroll, headcount and the attendance board go by exit date: an exit without one defaults to today.
   if (data.status === 'exited' && !data.exitDate && !before.exitDate) data.exitDate = toDayKey(new Date());
   if (data.email && data.email !== before.email && (await User.exists({ email: data.email }))) {
-    throw new ApiError(409, 'email already exists');
+    throw new ApiError(409, 'Email already exists');
   }
 
   const after = await Employee.findByIdAndUpdate(id, data, { returnDocument: 'after', runValidators: true }).populate(populate);

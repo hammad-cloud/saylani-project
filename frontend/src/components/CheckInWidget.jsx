@@ -211,7 +211,8 @@ export default function CheckInWidget({ onChange }) {
           <p className="text-xs text-slate-500">{now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
       </div>
-      <div className="min-w-0 flex-1 sm:text-center">
+      {/* min-w-48: on a phone this wraps under the clock at full width instead of squeezing beside it */}
+      <div className="min-w-48 flex-1 sm:text-center">
         {today.loading && !today.data ? (
           <Spinner />
         ) : !record ? (
@@ -221,7 +222,7 @@ export default function CheckInWidget({ onChange }) {
             <p className="flex flex-wrap items-center gap-2 text-sm font-semibold sm:justify-center">
               In {fmtTime(record.checkIn)} · Out {fmtTime(record.checkOut)} <Badge value={record.status} />
             </p>
-            <p className={`mt-0.5 flex items-center gap-2 text-sm tabular-nums sm:justify-center ${working ? 'text-teal-700 dark:text-teal' : 'text-muted'}`}>
+            <p className={`mt-0.5 flex flex-wrap items-center gap-x-2 text-sm tabular-nums sm:justify-center ${working ? 'text-teal-700 dark:text-teal' : 'text-muted'}`}>
               {working && <span className="h-2 w-2 animate-live rounded-full bg-teal" aria-hidden="true" />}
               {working ? 'Working for ' : 'Worked '}
               <strong>{formatDuration(workedMs)}</strong>
