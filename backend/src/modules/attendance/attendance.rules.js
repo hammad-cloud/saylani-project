@@ -14,6 +14,15 @@ export function computeStatus({ checkIn, checkOut }, settings) {
 export const FACE_MATCH_THRESHOLD = 0.5;
 export const faceDistance = (a, b) => Math.sqrt(a.reduce((sum, v, i) => sum + (v - b[i]) ** 2, 0));
 
+// Angles of one face differ more than two front photos do, but stay well apart from another person.
+export const SAME_PERSON_ACROSS_ANGLES = 0.6;
+
+// Closest distance from a live face to any enrolled angle (Infinity when nothing is enrolled).
+export const closestFaceDistance = (enrolled, descriptor) => Math.min(...enrolled.map((e) => faceDistance(e, descriptor)));
+
+// A face set-up is valid only if every angle looks like the first (front) one: no mixing two people.
+export const isOnePerson = (descriptors) => descriptors.every((d) => faceDistance(descriptors[0], d) <= SAME_PERSON_ACROSS_ANGLES);
+
 // Earth-surface distance in metres (Haversine) for the camera check-in geofence.
 export function distanceMeters(a, b) {
   const R = 6371000;

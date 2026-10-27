@@ -8,7 +8,7 @@ import { notifyRoles, notifyUser } from '../../utils/notify.js';
 import { assertCanReview, requesterPopulate, reviewerRoles, scopedEmployeeId, selfEmployeeId } from '../../utils/scope.js';
 import { eachDay, isWorkingDay, today, toDayKey, dayFromKey } from '../../utils/dates.js';
 import { getSettings, getHolidayKeys } from '../settings/settings.service.js';
-import { computeStatus, distanceMeters, faceDistance, isLate, FACE_MATCH_THRESHOLD } from './attendance.rules.js';
+import { closestFaceDistance, computeStatus, distanceMeters, isLate, isOnePerson, FACE_MATCH_THRESHOLD } from './attendance.rules.js';
 
 const MAX_GPS_ACCURACY_M = 100;
 
@@ -34,10 +34,10 @@ async function verifyCameraCheckIn(employeeId, settings, { lat, lng, accuracy, f
     throw new ApiError(422, `You are ${Math.round(distance)} m from the office; check-in is allowed within ${settings.radiusMeters} m`);
   }
 
-  const employee = await Employee.findById(employeeId).select('+faceDescriptor');
-  if (employee.faceDescriptor?.length) {
+  const enrolled = enrolledFaces(await Employee.findById(employeeId).select('+faceDescriptor +faceDescriptors'));
+  if (enrolled.length) {
     if (!descriptor) throw new ApiError(422, 'Face descriptor missing');
-    if (faceDistance(employee.faceDescriptor, descriptor) > FACE_MATCH_THRESHOLD) throw new ApiError(422, 'Face does not match the enrolled employee');
+    if (closestFaceDistance(enrolled, descriptor) > FACE_MATCH_THRESHOLD) throw new ApiError(422, 'Face does not match the enrolled employee');
   }
   return { lat, lng, accuracy, distance: Math.round(distance), liveness: true };
 }
@@ -77,9 +77,15 @@ export async function checkOut(user) {
   return record;
 }
 
-export async function enrollFace(user, descriptor) {
-  await Employee.updateOne({ _id: selfEmployeeId(user) }, { faceDescriptor: descriptor });
-  await audit(user._id, 'enroll_face', 'Employee', { id: user.employee });
+// All enrolled angles: the multi-angle face set-up, or the older single-photo enrollment.
+const enrolledFaces = (employee) =>
+  employee?.faceDescriptors?.length ? employee.faceDescriptors : employee?.faceDescriptor?.length ? [employee.faceDescriptor] : [];
+
+// Face set-up: one descriptor per head angle (front first). Replaces any earlier enrollment.
+export async function enrollFace(user, descriptors) {
+  if (!isOnePerson(descriptors)) throw new ApiError(422, 'The scans do not look like the same person. Try again in good light, alone in the frame.');
+  await Employee.updateOne({ _id: selfEmployeeId(user) }, { faceDescriptors: descriptors, $unset: { faceDescriptor: 1 } });
+  await audit(user._id, 'enroll_face', 'Employee', { id: user.employee, after: { angles: descriptors.length } });
 }
 
 /* ---------- Day-by-day view shared by calendar, payroll and dashboards ---------- */
@@ -174,8 +180,13 @@ export async function getCalendar(user, employeeId, year, month) {
 }
 
 export async function getToday(user) {
-  const record = await Attendance.findOne({ employee: selfEmployeeId(user), date: today() });
-  return { date: toDayKey(new Date()), record };
+  const employeeId = selfEmployeeId(user);
+  const [record, employee] = await Promise.all([
+    Attendance.findOne({ employee: employeeId, date: today() }),
+    Employee.findById(employeeId).select('+faceDescriptor +faceDescriptors'),
+  ]);
+  // faceEnrolled lets the camera open the face set-up first, like a phone does.
+  return { date: toDayKey(new Date()), record, faceEnrolled: enrolledFaces(employee).length > 0 };
 }
 
 // Daily board for HR/Admin: every current employee with their status for the day.

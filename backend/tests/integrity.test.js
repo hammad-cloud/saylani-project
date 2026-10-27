@@ -80,6 +80,32 @@ test('regression: org records still in use cannot be deleted; unused ones can', 
   assert.equal((await call('GET', '/leaves', w.admin)).status, 200);
 });
 
+test('face set-up: several angles of one person; check-in matches the closest angle and refuses a stranger', async (t) => {
+  if (!mongoOk) return t.skip('MongoDB not reachable');
+  // Synthetic 128-number face fingerprints: angles of one person sit close together, a stranger is far away.
+  const face = (changes = {}) => Array.from({ length: 128 }, (_, i) => changes[i] ?? 0);
+  const front = face();
+  const left = face({ 0: 0.3 });
+  const up = face({ 1: 0.45 }); // a far angle: 0.45 from the front
+  const stranger = face(Object.fromEntries(Array.from({ length: 128 }, (_, i) => [i, 0.1]))); // ~1.13 away
+
+  assert.equal((await call('GET', '/attendance/today', w.hr)).body.faceEnrolled, false);
+  assert.equal((await call('POST', '/attendance/face/enroll', w.hr, { descriptor: front })).status, 422); // old single-photo shape
+  const mixed = await call('POST', '/attendance/face/enroll', w.hr, { descriptors: [front, stranger, left] });
+  assert.equal(mixed.status, 422);
+  assert.match(mixed.body.message, /same person/);
+  assert.equal((await call('POST', '/attendance/face/enroll', w.hr, { descriptors: [front, left, up] })).status, 200);
+  assert.equal((await call('GET', '/attendance/today', w.hr)).body.faceEnrolled, true);
+
+  await call('PUT', '/settings', w.admin, { officeLocation: { lat: 24.86, lng: 67.0 }, radiusMeters: 150 });
+  const camera = (descriptor) => call('POST', '/attendance/check-in', w.hr, { source: 'camera', lat: 24.86, lng: 67.0, accuracy: 20, faceCount: 1, liveness: true, descriptor });
+  const refused = await camera(stranger);
+  assert.equal(refused.status, 422);
+  assert.match(refused.body.message, /does not match/);
+  // 0.55 from the front photo (would fail a single-photo match) but 0.1 from the "up" angle: accepted.
+  assert.equal((await camera(face({ 1: 0.55 }))).status, 201);
+});
+
 test('regression: marking an employee exited without an exit date sets it to today and stops their pay', async (t) => {
   if (!mongoOk) return t.skip('MongoDB not reachable');
   const res = await call('PUT', `/employees/${w.aliId}`, w.hr, { status: 'exited' });

@@ -25,7 +25,9 @@ const correctionSchema = z.object({
 });
 
 const reviewSchema = z.object({ approve: z.boolean(), comment: z.string().trim().max(300).optional() });
-const enrollSchema = z.object({ descriptor: z.array(z.number()).length(128) });
+const descriptor128 = z.array(z.number()).length(128);
+// Face set-up sends one descriptor per head angle (front first); 3-12 angles.
+const enrollSchema = z.object({ descriptors: z.array(descriptor128).min(3, 'Scan at least 3 angles').max(12) });
 
 const monthQuery = (q) => {
   const now = new Date();
@@ -43,7 +45,7 @@ router.post('/check-in', authorize('hr', 'employee'), validate(checkInSchema), a
 });
 router.post('/check-out', authorize('hr', 'employee'), async (req, res) => res.json(await service.checkOut(req.user)));
 router.post('/face/enroll', authorize('hr', 'employee'), validate(enrollSchema), async (req, res) => {
-  await service.enrollFace(req.user, req.body.descriptor);
+  await service.enrollFace(req.user, req.body.descriptors);
   res.json({ message: 'Face enrolled' });
 });
 

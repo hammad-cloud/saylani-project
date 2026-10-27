@@ -141,7 +141,7 @@ Access is enforced **on the server** for every request (`authenticate` + `author
 | Bonus | Status |
 | --- | --- |
 | Camera attendance: face detection (exactly one face) + GPS, Haversine geofence checked on the server, GPS accuracy ≤ 100 m | ✅ web (laptop / phone browser) |
-| Face matching against the employee's enrolled face descriptor | ✅ (no photo stored, only the 128-number descriptor) |
+| Face matching: phone-style first-time face set-up (turn the head in a circle; one 128-number descriptor saved per angle, all checked to be one person); check-ins match the closest angle | ✅ (no photo stored, only descriptors) |
 | Liveness check: blink once (eye-aspect-ratio on face landmarks), enforced by the server | ✅ |
 | Attrition risk score | ✅ HR dashboard |
 | Absence anomaly flags | ✅ HR dashboard |

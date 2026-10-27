@@ -17,7 +17,9 @@ const employeeSchema = new mongoose.Schema(
     exitDate: { type: Date },
     status: { type: String, enum: EMPLOYEE_STATUSES, default: 'active' },
     basicSalary: { type: Number, required: true, min: 1 }, // gross = 1.5 × basic (HRA 40%, medical 10%)
-    faceDescriptor: { type: [Number], select: false, default: undefined }, // optional enrolled face for camera check-in
+    faceDescriptor: { type: [Number], select: false, default: undefined }, // legacy: one enrolled face (single photo)
+    // Face set-up (Face ID style): one 128-number descriptor per head angle; check-in matches the closest.
+    faceDescriptors: { type: [[Number]], select: false, default: undefined },
   },
   { timestamps: true }
 );
