@@ -50,8 +50,8 @@ const MATRIX = [
   ['GET', '/employees/export', null, { admin: 403, hr: 'ok', employee: 403 }],
   ['GET', '/attendance/board', null, { admin: 'ok', hr: 'ok', employee: 403 }],
   ['POST', '/attendance/check-in', { source: 'web' }, { admin: 403, hr: 'ok', employee: 'ok' }],
-  ['PATCH', `/attendance/corrections/${FAKE_ID}`, { approve: true }, { admin: 403, hr: 404, employee: 403 }],
-  ['PATCH', `/leaves/${FAKE_ID}`, { approve: true }, { admin: 403, hr: 404, employee: 403 }],
+  ['PATCH', `/attendance/corrections/${FAKE_ID}`, { approve: true }, { admin: 404, hr: 404, employee: 403 }], // Admin: HR staff requests only
+  ['PATCH', `/leaves/${FAKE_ID}`, { approve: true }, { admin: 404, hr: 404, employee: 403 }],
   ['GET', '/payroll/runs', null, { admin: 'ok', hr: 'ok', employee: 403 }],
   ['POST', '/payroll/runs', { year: 2020, month: 1 }, { admin: 403, hr: 422, employee: 403 }],
   ['POST', `/payroll/runs/${FAKE_ID}/finalize`, null, { admin: 404, hr: 403, employee: 403 }],

@@ -5,6 +5,7 @@ import { Designation } from '../../models/Designation.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { audit } from '../../utils/audit.js';
 import { generateTempPassword } from '../../utils/password.js';
+import { toDayKey } from '../../utils/dates.js';
 import { escapeRegex, scopedEmployeeId, selfEmployeeId } from '../../utils/scope.js';
 
 const populate = [
@@ -80,6 +81,8 @@ export async function updateEmployee(actor, id, data) {
   }
   const before = await Employee.findById(id);
   if (!before) throw new ApiError(404, 'Employee not found');
+  // Payroll, headcount and the attendance board go by exit date: an exit without one defaults to today.
+  if (data.status === 'exited' && !data.exitDate && !before.exitDate) data.exitDate = toDayKey(new Date());
   if (data.email && data.email !== before.email && (await User.exists({ email: data.email }))) {
     throw new ApiError(409, 'email already exists');
   }

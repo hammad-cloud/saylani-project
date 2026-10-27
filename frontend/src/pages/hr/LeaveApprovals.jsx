@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { Inbox, Sparkles } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Async, Badge, EmptyState, PageHeader, fmtDate, useApi } from '../../components/ui';
-import ReviewDialog from '../../components/ReviewDialog';
+import ReviewDialog, { canReview } from '../../components/ReviewDialog';
 
 export default function LeaveApprovals() {
   const { user } = useAuth();
-  const canReview = user.role === 'hr';
+  const isHr = user.role === 'hr';
   const [status, setStatus] = useState('pending');
   const state = useApi(`/leaves?status=${status}`);
   const [selected, setSelected] = useState(null);
@@ -14,8 +14,8 @@ export default function LeaveApprovals() {
   return (
     <>
       <PageHeader
-        title={canReview ? 'Leave approvals' : 'Leave requests'}
-        subtitle={canReview ? 'Approve or reject with a comment. Balances and overlaps are re-checked on approval.' : 'View only: HR approves leave'}
+        title="Leave approvals"
+        subtitle={isHr ? 'Approve or reject with a comment. Balances and overlaps are re-checked on approval.' : 'You approve leave for HR staff; HR approves everyone else.'}
         actions={
           <select className="input w-auto" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
             <option value="pending">Pending</option>
@@ -67,7 +67,7 @@ export default function LeaveApprovals() {
                         {l.comment && <p className="text-xs text-slate-400">{l.comment}</p>}
                       </td>
                       <td className="text-right">
-                        {canReview && l.status === 'pending' && String(l.employee?._id) !== String(user.employee) && (
+                        {l.status === 'pending' && canReview(user, l.employee) && (
                           <button className="btn-primary btn-sm" onClick={() => setSelected(l)}>
                             Review
                           </button>

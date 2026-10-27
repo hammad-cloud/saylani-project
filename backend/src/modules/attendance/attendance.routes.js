@@ -60,7 +60,7 @@ router.get('/corrections', async (req, res) => res.json(await service.listCorrec
 router.post('/corrections', authorize('employee', 'hr'), validate(correctionSchema), async (req, res) => {
   res.status(201).json(await service.requestCorrection(req.user, req.body));
 });
-router.patch('/corrections/:id', authorize('hr'), validate(reviewSchema), async (req, res) => {
+router.patch('/corrections/:id', authorize('hr', 'admin'), validate(reviewSchema), async (req, res) => {
   res.json(await service.reviewCorrection(req.user, req.params.id, req.body));
 });
 

@@ -4,6 +4,10 @@ import { toast } from 'sonner';
 import { api, errorMessage } from '../api/client';
 import { Field, Modal } from './ui';
 
+// Mirrors the server rule: never your own request; HR reviews everyone, Admin only HR staff.
+export const canReview = (user, requester) =>
+  String(requester?._id) !== String(user.employee) && (user.role === 'hr' || (user.role === 'admin' && requester?.user?.role === 'hr'));
+
 // Approve / reject with an optional comment; shared by leave and attendance-correction inboxes.
 export default function ReviewDialog({ item, url, title, children, onClose, onDone }) {
   const [comment, setComment] = useState('');

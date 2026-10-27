@@ -5,7 +5,7 @@ import { Leave } from '../../models/Leave.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { audit } from '../../utils/audit.js';
 import { notifyRoles, notifyUser } from '../../utils/notify.js';
-import { scopedEmployeeId, selfEmployeeId } from '../../utils/scope.js';
+import { assertCanReview, requesterPopulate, reviewerRoles, scopedEmployeeId, selfEmployeeId } from '../../utils/scope.js';
 import { eachDay, isWorkingDay, today, toDayKey, dayFromKey } from '../../utils/dates.js';
 import { getSettings, getHolidayKeys } from '../settings/settings.service.js';
 import { computeStatus, distanceMeters, faceDistance, isLate, FACE_MATCH_THRESHOLD } from './attendance.rules.js';
@@ -193,7 +193,7 @@ export async function requestCorrection(user, { date, checkIn, checkOut, reason 
   }
 
   const correction = await AttendanceCorrection.create({ employee: employeeId, date: day, checkIn, checkOut, reason });
-  await notifyRoles(['hr'], 'Attendance correction requested', `${user.name} requested a correction for ${date}`, '/attendance/corrections');
+  await notifyRoles(reviewerRoles(user), 'Attendance correction requested', `${user.name} requested a correction for ${date}`, '/attendance/corrections');
   return correction;
 }
 
@@ -202,13 +202,14 @@ export function listCorrections(user, { status }) {
   const own = scopedEmployeeId(user);
   if (own) filter.employee = own;
   if (status) filter.status = status;
-  return AttendanceCorrection.find(filter).populate('employee', 'name code').sort({ createdAt: -1 }).limit(200);
+  return AttendanceCorrection.find(filter).populate(requesterPopulate('name code')).sort({ createdAt: -1 }).limit(200);
 }
 
 export async function reviewCorrection(user, id, { approve, comment }) {
   const correction = await AttendanceCorrection.findById(id).populate('employee', 'name user department');
   if (!correction) throw new ApiError(404, 'Correction not found');
   if (correction.status !== 'pending') throw new ApiError(409, `Correction already ${correction.status}`);
+  await assertCanReview(user, correction.employee._id);
 
   correction.status = approve ? 'approved' : 'rejected';
   correction.reviewedBy = user._id;

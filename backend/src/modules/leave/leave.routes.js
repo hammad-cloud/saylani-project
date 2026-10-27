@@ -30,7 +30,7 @@ router.post('/', authorize('hr', 'employee'), validate(applySchema), async (req,
 
 router.post('/:id/cancel', authorize('hr', 'employee'), async (req, res) => res.json(await service.cancelLeave(req.user, req.params.id)));
 
-router.patch('/:id', authorize('hr'), validate(reviewSchema), async (req, res) => {
+router.patch('/:id', authorize('hr', 'admin'), validate(reviewSchema), async (req, res) => {
   res.json(await service.reviewLeave(req.user, req.params.id, req.body));
 });
 

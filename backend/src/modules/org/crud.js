@@ -5,7 +5,8 @@ import { ApiError } from '../../utils/ApiError.js';
 import { audit } from '../../utils/audit.js';
 
 // Admin manages, HR views: the shape shared by every org-setup list (M2).
-export function crudRouter(Model, schema, { sort = { name: 1 } } = {}) {
+// inUse(id) returns a reason when the record is still referenced, which blocks the delete (409).
+export function crudRouter(Model, schema, { sort = { name: 1 }, inUse } = {}) {
   const router = Router();
   router.use(authenticate);
 
@@ -28,6 +29,8 @@ export function crudRouter(Model, schema, { sort = { name: 1 } } = {}) {
   });
 
   router.delete('/:id', authorize('admin'), async (req, res) => {
+    const reason = inUse && (await inUse(req.params.id));
+    if (reason) throw new ApiError(409, `Cannot delete: ${reason}`);
     const before = await Model.findByIdAndDelete(req.params.id);
     if (!before) throw new ApiError(404, `${Model.modelName} not found`);
     await audit(req.user._id, 'delete', Model.modelName, { before });

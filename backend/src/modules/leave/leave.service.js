@@ -5,7 +5,7 @@ import { Employee } from '../../models/Employee.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { audit } from '../../utils/audit.js';
 import { notifyRoles, notifyUser } from '../../utils/notify.js';
-import { scopedEmployeeId, selfEmployeeId } from '../../utils/scope.js';
+import { assertCanReview, requesterPopulate, reviewerRoles, scopedEmployeeId, selfEmployeeId } from '../../utils/scope.js';
 import { countWorkingDays, dayFromKey, today } from '../../utils/dates.js';
 import { getSettings, getHolidayKeys } from '../settings/settings.service.js';
 
@@ -76,7 +76,7 @@ export async function applyLeave(user, { leaveType: leaveTypeId, start: startKey
   const employee = await Employee.findById(employeeId, 'department');
   const leave = await Leave.create({ employee: employeeId, department: employee.department, leaveType: leaveType._id, start, end, days, reason, viaAi });
   await audit(user._id, 'create', 'Leave', { after: leave });
-  await notifyRoles(['hr'], 'New leave request', `${user.name} applied for ${days} day(s) of ${leaveType.name} leave`, '/leave/approvals');
+  await notifyRoles(reviewerRoles(user), 'New leave request', `${user.name} applied for ${days} day(s) of ${leaveType.name} leave`, '/leave/approvals');
   return leave.populate('leaveType', 'name code');
 }
 
@@ -102,7 +102,7 @@ export function listLeaves(user, { status, employee, from, to }) {
   if (to) filter.start = { $lte: dayFromKey(to) };
   return Leave.find(filter)
     .populate('leaveType', 'name code')
-    .populate({ path: 'employee', select: 'name code department', populate: { path: 'department', select: 'name' } })
+    .populate(requesterPopulate('name code department'))
     .sort({ createdAt: -1 })
     .limit(300);
 }
@@ -111,7 +111,7 @@ export async function reviewLeave(user, id, { approve, comment }) {
   const leave = await Leave.findById(id).populate('leaveType').populate('employee', 'name user');
   if (!leave) throw new ApiError(404, 'Leave request not found');
   if (leave.status !== 'pending') throw new ApiError(409, `Leave is already ${leave.status}`);
-  if (String(leave.employee._id) === String(user.employee)) throw new ApiError(403, 'You cannot approve your own leave');
+  await assertCanReview(user, leave.employee._id);
 
   if (approve) await assertCanTake(leave.employee._id, leave.leaveType, leave.start, leave.end, leave.days, leave._id);
 

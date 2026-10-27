@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { ClipboardCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Async, Badge, EmptyState, PageHeader, fmtDate, fmtTime, useApi } from '../../components/ui';
-import ReviewDialog from '../../components/ReviewDialog';
+import ReviewDialog, { canReview } from '../../components/ReviewDialog';
 
 export default function Corrections() {
   const { user } = useAuth();
-  const canReview = user.role === 'hr';
+  const isHr = user.role === 'hr';
   const [status, setStatus] = useState('pending');
   const state = useApi(`/attendance/corrections?status=${status}`);
   const [selected, setSelected] = useState(null);
@@ -15,7 +15,7 @@ export default function Corrections() {
     <>
       <PageHeader
         title="Attendance corrections"
-        subtitle={canReview ? 'Approve or reject correction requests. Approval rewrites the day with the corrected times.' : 'View only: HR reviews corrections'}
+        subtitle={isHr ? 'Approve or reject correction requests. Approval rewrites the day with the corrected times.' : 'You review corrections from HR staff; HR reviews everyone else.'}
         actions={
           <select className="input w-auto" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
             <option value="pending">Pending</option>
@@ -60,7 +60,7 @@ export default function Corrections() {
                         {c.comment && <p className="text-xs text-slate-400">{c.comment}</p>}
                       </td>
                       <td className="text-right">
-                        {canReview && c.status === 'pending' && (
+                        {c.status === 'pending' && canReview(user, c.employee) && (
                           <button className="btn-primary btn-sm" onClick={() => setSelected(c)}>
                             Review
                           </button>
